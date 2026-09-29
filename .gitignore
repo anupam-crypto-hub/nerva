@@ -1,0 +1,30 @@
+# Environment files (contain secrets)
+.env
+.env.local
+.env.production
+.env.staging
+
+# Keep the example
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker volumes
+docker-data/

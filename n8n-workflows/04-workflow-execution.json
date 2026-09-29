@@ -1,0 +1,80 @@
+{
+  "name": "Nerva — Workflow Step Execution",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "workflow-execution",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4001-4000-8000-000000000001",
+      "name": "Webhook: Workflow Execution",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "workflow-execution"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"received\", \"executionId\": \"{{ $json.data.executionId }}\" }",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4001-4000-8000-000000000002",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "step_info",
+              "value": "=Executing step '{{ $json.data.stepName }}' for workflow '{{ $json.data.workflowSlug }}' (Execution ID: {{ $json.data.executionId }})"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d4e5f6a7-4001-4000-8000-000000000003",
+      "name": "Log Step Execution",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 480]
+    },
+    {
+      "parameters": {
+        "content": "## Generic Workflow Execution Receiver\n\nReceives state-machine step execution triggers from `WorkflowExecutionService` (`POST /webhook/workflow-execution`).\n\nPayload:\n```json\n{\n  \"type\": \"workflow.execute\",\n  \"data\": {\n    \"executionId\": \"...\",\n    \"workflowSlug\": \"cod_confirmation\",\n    \"stepName\": \"send_confirmation\"\n  }\n}\n```",
+        "height": 280,
+        "width": 380
+      },
+      "id": "d4e5f6a7-4001-4000-8000-000000000099",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, 40]
+    }
+  ],
+  "connections": {
+    "Webhook: Workflow Execution": {
+      "main": [
+        [
+          { "node": "Respond 200 OK", "type": "main", "index": 0 },
+          { "node": "Log Step Execution", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "nerva" },
+    { "name": "workflow-execution" }
+  ],
+  "pinData": {}
+}

@@ -1,0 +1,1 @@
+{"event_id":"evt_final_004","type":"address.verified","occurred_at":"2026-09-03T12:03:00Z","data":{"customer":{"id":"cust_001","name":"Rahul Sharma","phone":"919876543210"},"order":{"id":"ord_001","order_number":"JIF-2001"}}}

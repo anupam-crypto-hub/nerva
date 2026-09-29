@@ -1,0 +1,719 @@
+// ============================================================
+// Notification Module — Prisma Schema
+// Multi-Tenant Commerce Engagement & Recovery Platform
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// TENANT MODELS
+// ============================================================
+
+model Organization {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  status    String   @default("ACTIVE") // ACTIVE, SUSPENDED, DELETED
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  workspaces Workspace[]
+
+  @@map("organizations")
+}
+
+model Workspace {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  organizationId String   @map("organization_id") @db.ObjectId
+  name           String
+  slug           String
+  status         String   @default("ACTIVE") // ACTIVE, SUSPENDED, DELETED
+  settings       Json?    // workspace-level settings
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  stores             Store[]
+  apiKeys            ApiKey[]
+  customers          Customer[]
+  orders             Order[]
+  shipments          Shipment[]
+  ndrs               Ndr[]
+  payments           Payment[]
+  checkouts          Checkout[]
+  events             Event[]
+  workflowConfigs    WorkflowConfig[]
+  workflowExecutions WorkflowExecution[]
+  messageTemplates   MessageTemplate[]
+  messages           Message[]
+  conversations      Conversation[]
+  customerConsents   CustomerConsent[]
+  integrationAccounts IntegrationAccount[]
+  webhooks           Webhook[]
+  auditLogs          AuditLog[]
+
+  @@unique([slug])
+  @@map("workspaces")
+}
+
+model Store {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  name        String
+  platform    String?  // shopify, woocommerce, custom
+  externalId  String?  @map("external_id")
+  domain      String?
+  status      String   @default("ACTIVE")
+  settings    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId])
+  @@map("stores")
+}
+
+// ============================================================
+// AUTH MODELS
+// ============================================================
+
+model ApiKey {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String    @map("workspace_id") @db.ObjectId
+  clientId    String    @unique @map("client_id")
+  keyHash     String    @map("key_hash")
+  keyPrefix   String    @map("key_prefix") // first 8 chars for identification
+  name        String
+  permissions String[]  @default(["events:write", "events:read", "workflows:read", "workflows:write"])
+  status      String    @default("ACTIVE") // ACTIVE, REVOKED
+  lastUsedAt  DateTime? @map("last_used_at")
+  expiresAt   DateTime? @map("expires_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId])
+  @@index([keyPrefix])
+  @@map("api_keys")
+}
+
+model IntegrationAccount {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId  String   @map("workspace_id") @db.ObjectId
+  provider     String   // whatsapp, sms, email
+  credentials  Json     // encrypted provider credentials
+  status       String   @default("ACTIVE")
+  settings     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId, provider])
+  @@map("integration_accounts")
+}
+
+// ============================================================
+// CUSTOMER MODELS
+// ============================================================
+
+model Customer {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId        String   @map("workspace_id") @db.ObjectId
+  externalCustomerId String?  @map("external_customer_id")
+  name               String?
+  phone              String?  // E.164 format
+  email              String?
+  language           String?  @default("en")
+  timezone           String?  @default("Asia/Kolkata")
+  consentStatus      String   @default("OPTED_IN") @map("consent_status") // OPTED_IN, OPTED_OUT
+  tags               String[] @default([])
+  metadata           Json?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id])
+  orders        Order[]
+  ndrs          Ndr[]
+  conversations Conversation[]
+  consents      CustomerConsent[]
+
+  @@unique([workspaceId, phone])
+  @@unique([workspaceId, externalCustomerId])
+  @@index([workspaceId])
+  @@map("customers")
+}
+
+model CustomerConsent {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  customerId  String   @map("customer_id") @db.ObjectId
+  channel     String   // whatsapp, sms, email
+  status      String   // OPTED_IN, OPTED_OUT
+  source      String   // WHATSAPP_REPLY, API, MANUAL
+  consentedAt DateTime @map("consented_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  customer  Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([workspaceId, customerId])
+  @@map("customer_consents")
+}
+
+// ============================================================
+// ORDER MODELS
+// ============================================================
+
+model Order {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId     String   @map("workspace_id") @db.ObjectId
+  externalOrderId String?  @map("external_order_id")
+  orderNumber     String?  @map("order_number")
+  customerId      String?  @map("customer_id") @db.ObjectId
+  paymentMethod   String?  @map("payment_method") // COD, PREPAID
+  paymentStatus   String?  @map("payment_status")
+  orderStatus     String   @default("CREATED") @map("order_status")
+  currency        String   @default("INR")
+  subtotal        Float?
+  discount        Float?   @default(0)
+  shippingAmount  Float?   @default(0) @map("shipping_amount")
+  totalAmount     Float?   @map("total_amount")
+  codAmount       Float?   @map("cod_amount")
+  billingAddress  Json?    @map("billing_address")
+  shippingAddress Json?    @map("shipping_address")
+  items           Json[]   @default([])
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id])
+  customer  Customer?  @relation(fields: [customerId], references: [id])
+  shipments Shipment[]
+  ndrs      Ndr[]
+  payments  Payment[]
+
+  @@unique([workspaceId, externalOrderId])
+  @@index([workspaceId, orderStatus])
+  @@index([workspaceId, customerId])
+  @@map("orders")
+}
+
+// ============================================================
+// ADDRESS MODELS
+// ============================================================
+
+model Address {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId  String   @map("workspace_id") @db.ObjectId
+  entityType   String   @map("entity_type") // ORDER, CUSTOMER
+  entityId     String   @map("entity_id")
+  type         String   // SHIPPING, BILLING
+  name         String?
+  phone        String?
+  addressLine1 String?  @map("address_line_1")
+  addressLine2 String?  @map("address_line_2")
+  landmark     String?
+  city         String?
+  state        String?
+  country      String?  @default("IN")
+  pincode      String?
+  latitude     Float?
+  longitude    Float?
+  isVerified   Boolean  @default(false) @map("is_verified")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  versions AddressVersion[]
+
+  @@index([workspaceId, entityType, entityId])
+  @@map("addresses")
+}
+
+model AddressVersion {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  addressId   String   @map("address_id") @db.ObjectId
+  version     Int
+  oldAddress  Json     @map("old_address")
+  newAddress  Json     @map("new_address")
+  source      String   // CUSTOMER, SYSTEM, API
+  actor       String?  // customer_id or system
+  reason      String?
+  changedAt   DateTime @default(now()) @map("changed_at")
+
+  address Address @relation(fields: [addressId], references: [id])
+
+  @@index([addressId])
+  @@map("address_versions")
+}
+
+// ============================================================
+// PAYMENT MODELS
+// ============================================================
+
+model Payment {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId       String   @map("workspace_id") @db.ObjectId
+  orderId           String?  @map("order_id") @db.ObjectId
+  externalPaymentId String?  @map("external_payment_id")
+  method            String   // COD, PREPAID, UPI, CARD
+  status            String   @default("PENDING") // PENDING, SUCCESS, FAILED, EXPIRED
+  amount            Float
+  currency          String   @default("INR")
+  paymentLink       String?  @map("payment_link")
+  metadata          Json?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  order     Order?    @relation(fields: [orderId], references: [id])
+
+  @@index([workspaceId, orderId])
+  @@map("payments")
+}
+
+// ============================================================
+// SHIPMENT MODELS
+// ============================================================
+
+model Shipment {
+  id                   String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId          String    @map("workspace_id") @db.ObjectId
+  externalShipmentId   String?   @map("external_shipment_id")
+  orderId              String?   @map("order_id") @db.ObjectId
+  awb                  String?
+  courier              String?
+  status               String    @default("CREATED")
+  expectedDeliveryDate DateTime? @map("expected_delivery_date")
+  origin               Json?
+  destination          Json?
+  metadata             Json?
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id])
+  order          Order?          @relation(fields: [orderId], references: [id])
+  shipmentEvents ShipmentEvent[]
+  ndrs           Ndr[]
+
+  @@unique([workspaceId, externalShipmentId])
+  @@unique([workspaceId, awb])
+  @@index([workspaceId, orderId])
+  @@map("shipments")
+}
+
+model ShipmentEvent {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  shipmentId  String   @map("shipment_id") @db.ObjectId
+  status      String
+  location    String?
+  description String?
+  occurredAt  DateTime @map("occurred_at")
+  rawData     Json?    @map("raw_data")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id])
+
+  @@index([shipmentId])
+  @@map("shipment_events")
+}
+
+// ============================================================
+// NDR MODELS
+// ============================================================
+
+model Ndr {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId      String    @map("workspace_id") @db.ObjectId
+  shipmentId       String?   @map("shipment_id") @db.ObjectId
+  orderId          String?   @map("order_id") @db.ObjectId
+  customerId       String?   @map("customer_id") @db.ObjectId
+  courierReason    String?   @map("courier_reason")
+  normalizedReason String?   @map("normalized_reason") // CUSTOMER_UNAVAILABLE, WRONG_ADDRESS, etc.
+  attemptNumber    Int       @default(1) @map("attempt_number")
+  status           String    @default("CREATED") // CREATED, IN_PROGRESS, RESCHEDULED, RESOLVED, FAILED
+  resolution       Json?     // resolution details
+  metadata         Json?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  resolvedAt       DateTime? @map("resolved_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  shipment  Shipment? @relation(fields: [shipmentId], references: [id])
+  order     Order?    @relation(fields: [orderId], references: [id])
+  customer  Customer? @relation(fields: [customerId], references: [id])
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, shipmentId])
+  @@map("ndrs")
+}
+
+// ============================================================
+// CHECKOUT MODELS
+// ============================================================
+
+model Checkout {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId        String    @map("workspace_id") @db.ObjectId
+  externalCheckoutId String?   @map("external_checkout_id")
+  customerId         String?   @map("customer_id")
+  email              String?
+  phone              String?
+  status             String    @default("CREATED") // CREATED, UPDATED, COMPLETED, ABANDONED
+  currency           String    @default("INR")
+  totalAmount        Float?    @map("total_amount")
+  items              Json[]    @default([])
+  abandonedAt        DateTime? @map("abandoned_at")
+  completedAt        DateTime? @map("completed_at")
+  metadata           Json?
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, externalCheckoutId])
+  @@index([workspaceId, status])
+  @@map("checkouts")
+}
+
+// ============================================================
+// EVENT MODELS
+// ============================================================
+
+model Event {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  eventId     String   @map("event_id") // external event ID
+  type        String   // order.created, ndr.created, etc.
+  source      String?  // order-service, shipping-service
+  occurredAt  DateTime @map("occurred_at")
+  data        Json     // full event payload
+  status      String   @default("RECEIVED") // RECEIVED, PROCESSING, PROCESSED, FAILED
+  processedAt DateTime? @map("processed_at")
+  error       Json?
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, eventId])
+  @@index([workspaceId, type])
+  @@index([workspaceId, status])
+  @@map("events")
+}
+
+model EventLog {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId   String   @map("workspace_id")
+  eventId       String   @map("event_id")
+  action        String   // RECEIVED, VALIDATED, PUBLISHED, PROCESSED, FAILED
+  details       Json?
+  correlationId String?  @map("correlation_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([workspaceId, eventId])
+  @@map("event_logs")
+}
+
+// ============================================================
+// WORKFLOW MODELS
+// ============================================================
+
+model Workflow {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  eventTypes  String[] @map("event_types") // which events trigger this
+  status      String   @default("ACTIVE") // ACTIVE, DEPRECATED
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  versions   WorkflowVersion[]
+  configs    WorkflowConfig[]
+  executions WorkflowExecution[]
+
+  @@map("workflows")
+}
+
+model WorkflowVersion {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workflowId  String   @map("workflow_id") @db.ObjectId
+  version     Int
+  definition  Json     // workflow step definitions
+  changelog   String?
+  status      String   @default("ACTIVE") // ACTIVE, DEPRECATED
+  publishedAt DateTime @default(now()) @map("published_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id])
+
+  @@unique([workflowId, version])
+  @@index([workflowId])
+  @@map("workflow_versions")
+}
+
+model WorkflowConfig {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  workflowId  String   @map("workflow_id") @db.ObjectId
+  enabled     Boolean  @default(true)
+  settings    Json     // workflow-specific configuration
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  workflow  Workflow  @relation(fields: [workflowId], references: [id])
+
+  @@unique([workspaceId, workflowId])
+  @@map("workflow_configs")
+}
+
+model WorkflowExecution {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId     String    @map("workspace_id") @db.ObjectId
+  workflowId      String    @map("workflow_id") @db.ObjectId
+  workflowVersion Int       @map("workflow_version")
+  eventId         String?   @map("event_id")
+  entityType      String?   @map("entity_type") // ORDER, SHIPMENT, NDR
+  entityId        String?   @map("entity_id")
+  status          String    @default("PENDING") // PENDING, RUNNING, WAITING, COMPLETED, FAILED, CANCELLED, EXPIRED
+  currentStep     String?   @map("current_step")
+  context         Json?     // workflow execution context/state
+  error           Json?     // { code, message }
+  correlationId   String?   @map("correlation_id")
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id])
+  workflow  Workflow         @relation(fields: [workflowId], references: [id])
+  steps     WorkflowStep[]
+
+  @@index([workspaceId, workflowId, status])
+  @@index([workspaceId, entityType, entityId])
+  @@index([workspaceId, eventId])
+  @@map("workflow_executions")
+}
+
+model WorkflowStep {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  executionId String    @map("execution_id") @db.ObjectId
+  stepName    String    @map("step_name")
+  stepType    String    @map("step_type") // ACTION, WAIT, CONDITION, SEND_MESSAGE
+  status      String    @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED, SKIPPED
+  input       Json?
+  output      Json?
+  error       Json?
+  scheduledAt DateTime? @map("scheduled_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  execution WorkflowExecution @relation(fields: [executionId], references: [id])
+
+  @@index([executionId])
+  @@map("workflow_steps")
+}
+
+// ============================================================
+// MESSAGING MODELS
+// ============================================================
+
+model MessageTemplate {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  name        String
+  channel     String   // whatsapp, sms, email
+  type        String   // TEMPLATE, TEXT, INTERACTIVE
+  content     Json     // template content (varies by channel)
+  variables   String[] @default([]) // {{customer_name}}, {{order_number}}
+  externalId  String?  @map("external_id") // WhatsApp template ID
+  status      String   @default("ACTIVE")
+  language    String   @default("en")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, name, channel])
+  @@index([workspaceId])
+  @@map("message_templates")
+}
+
+model Message {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId   String    @map("workspace_id") @db.ObjectId
+  conversationId String?  @map("conversation_id") @db.ObjectId
+  executionId   String?   @map("execution_id")
+  direction     String    // OUTBOUND, INBOUND
+  channel       String    // whatsapp, sms, email
+  from          String?
+  to            String
+  type          String    // TEMPLATE, TEXT, INTERACTIVE, MEDIA
+  content       Json      // message content
+  externalId    String?   @map("external_id") // provider message ID
+  status        String    @default("QUEUED") // QUEUED, SENT, DELIVERED, READ, FAILED
+  error         Json?
+  sentAt        DateTime? @map("sent_at")
+  deliveredAt   DateTime? @map("delivered_at")
+  readAt        DateTime? @map("read_at")
+  failedAt      DateTime? @map("failed_at")
+  metadata      Json?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id])
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+  events       MessageEvent[]
+
+  @@index([workspaceId, conversationId])
+  @@index([workspaceId, executionId])
+  @@index([externalId])
+  @@map("messages")
+}
+
+model MessageEvent {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  messageId String   @map("message_id") @db.ObjectId
+  type      String   // SENT, DELIVERED, READ, FAILED
+  timestamp DateTime
+  rawData   Json?    @map("raw_data")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id])
+
+  @@index([messageId])
+  @@map("message_events")
+}
+
+// ============================================================
+// CONVERSATION MODELS
+// ============================================================
+
+model Conversation {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String    @map("workspace_id") @db.ObjectId
+  customerId  String    @map("customer_id") @db.ObjectId
+  channel     String    // whatsapp, sms
+  channelId   String    @map("channel_id") // phone number
+  status      String    @default("ACTIVE") // ACTIVE, CLOSED, EXPIRED
+  closedAt    DateTime? @map("closed_at")
+  metadata    Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  customer  Customer  @relation(fields: [customerId], references: [id])
+  messages  Message[]
+  states    ConversationState[]
+
+  @@index([workspaceId, customerId])
+  @@index([workspaceId, channelId])
+  @@map("conversations")
+}
+
+model ConversationState {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String  @map("conversation_id") @db.ObjectId
+  workflowSlug  String   @map("workflow_slug")
+  executionId   String   @map("execution_id")
+  state         String   // WAITING_FOR_CONFIRMATION, WAITING_FOR_ADDRESS, etc.
+  context       Json?    // additional state context
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId, isActive])
+  @@map("conversation_states")
+}
+
+// ============================================================
+// WEBHOOK MODELS
+// ============================================================
+
+model Webhook {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  url         String
+  events      String[] // order.confirmed, ndr.resolved, etc.
+  secret      String   // HMAC signing secret
+  status      String   @default("ACTIVE") // ACTIVE, INACTIVE, FAILED
+  retryPolicy Json?    @map("retry_policy")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace  Workspace          @relation(fields: [workspaceId], references: [id])
+  deliveries WebhookDelivery[]
+
+  @@index([workspaceId])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  webhookId      String    @map("webhook_id") @db.ObjectId
+  event          String    // the event type
+  payload        Json
+  status         String    @default("PENDING") // PENDING, DELIVERED, FAILED
+  httpStatus     Int?      @map("http_status")
+  responseBody   String?   @map("response_body")
+  attemptNumber  Int       @default(1) @map("attempt_number")
+  maxAttempts    Int       @default(5) @map("max_attempts")
+  nextRetryAt    DateTime? @map("next_retry_at")
+  deliveredAt    DateTime? @map("delivered_at")
+  error          String?
+  correlationId  String?   @map("correlation_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  webhook Webhook @relation(fields: [webhookId], references: [id])
+
+  @@index([webhookId, status])
+  @@index([status, nextRetryAt])
+  @@map("webhook_deliveries")
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId   String   @map("workspace_id") @db.ObjectId
+  actor         String   // SYSTEM, CUSTOMER, API, WORKFLOW
+  action        String   // ADDRESS_UPDATED, ORDER_CONFIRMED, etc.
+  entityType    String   @map("entity_type") // ORDER, CUSTOMER, SHIPMENT
+  entityId      String   @map("entity_id")
+  source        String?  // WHATSAPP, API, WEBHOOK
+  before        Json?    // state before change
+  after         Json?    // state after change
+  requestId     String?  @map("request_id")
+  correlationId String?  @map("correlation_id")
+  executionId   String?  @map("execution_id")
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId, entityType, entityId])
+  @@index([workspaceId, action])
+  @@index([workspaceId, createdAt])
+  @@map("audit_logs")
+}

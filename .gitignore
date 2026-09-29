@@ -13,18 +13,38 @@ node_modules/
 # Build output
 dist/
 build/
+*.tsbuildinfo
 
-# IDE
+# Test & Coverage
+coverage/
+.nyc_output/
+
+# Database & Redis snapshots
+dump.rdb
+*.rdb
+
+# Temporary / Scratch test scripts
+test-db.ts
+
+# IDE & Editors
 .vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # Logs
 *.log
 logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # Docker volumes
 docker-data/

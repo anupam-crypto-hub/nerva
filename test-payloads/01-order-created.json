@@ -1,0 +1,1 @@
+{"event_id":"evt_final_001","type":"order.created","occurred_at":"2026-09-03T12:00:00Z","data":{"customer":{"id":"cust_001","name":"Rahul Sharma","phone":"919876543210","email":"rahul@test.com"},"order":{"id":"ord_001","order_number":"JIF-2001","payment_method":"COD","total_amount":1499,"status":"CREATED","currency":"INR"}}}

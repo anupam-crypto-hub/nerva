@@ -1,1 +1,0 @@
-{"event_id":"evt_final_002","type":"shipment.created","occurred_at":"2026-09-03T12:01:00Z","data":{"customer":{"id":"cust_001","name":"Rahul Sharma","phone":"919876543210"},"order":{"id":"ord_001","order_number":"JIF-2001"},"shipment":{"id":"shp_001","tracking_number":"TRACK123456","courier":"delhivery","status":"CREATED"}}}

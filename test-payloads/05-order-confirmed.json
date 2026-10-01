@@ -1,1 +1,0 @@
-{"event_id":"evt_final_005","type":"order.confirmed","occurred_at":"2026-09-03T12:04:00Z","data":{"customer":{"id":"cust_001","phone":"919876543210"},"order":{"id":"ord_001","order_number":"JIF-2001","status":"CONFIRMED"}}}

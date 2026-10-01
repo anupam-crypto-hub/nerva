@@ -1,1 +1,0 @@
-{"event_id":"evt_final_003","type":"ndr.created","occurred_at":"2026-09-03T12:02:00Z","data":{"customer":{"id":"cust_001","name":"Rahul Sharma","phone":"919876543210"},"order":{"id":"ord_001","order_number":"JIF-2001"},"ndr":{"shipment_id":"shp_001","reason":"customer_unavailable","attempt_number":1,"status":"ACTION_REQUIRED"}}}

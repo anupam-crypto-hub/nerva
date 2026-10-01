@@ -1,1 +1,0 @@
-{"url":"https://api.jiffy.com/nerva/callback","events":["order.confirmed","ndr.resolved","address.updated"],"secret":"whsec_test_secret_123"}

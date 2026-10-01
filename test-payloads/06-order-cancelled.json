@@ -1,1 +1,0 @@
-{"event_id":"evt_final_006","type":"order.cancelled","occurred_at":"2026-09-03T12:05:00Z","data":{"customer":{"id":"cust_002","phone":"919876543211"},"order":{"id":"ord_002","order_number":"JIF-2002","status":"CANCELLED","cancellation_reason":"customer_request"}}}

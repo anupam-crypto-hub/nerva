@@ -5,68 +5,30 @@ import {
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
-import { AuthService } from '../auth.service';
+import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
+import { AuthConfig } from '@config/configuration';
 
-/**
- * Guard that validates API key from Authorization: Bearer <key> header.
- * Resolves the workspace and attaches it to the request.
- */
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
   private readonly logger = new Logger(ApiKeyGuard.name);
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly configService: ConfigService) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    let token: string | undefined;
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest<Request>();
+    const apiKey = request.headers['x-api-key'] as string;
 
-    const xApiKey = request.headers['x-api-key'];
-    if (typeof xApiKey === 'string' && xApiKey.trim()) {
-      token = xApiKey.trim();
-    } else {
-      const authHeader = request.headers.authorization;
-      if (!authHeader) {
-        throw new UnauthorizedException({
-          errorCode: 'MISSING_AUTH_HEADER',
-          message: 'Authorization header (Bearer <api_key>) or x-api-key header is required',
-        });
-      }
-
-      const [scheme, authToken] = authHeader.split(' ');
-      if (scheme !== 'Bearer' || !authToken) {
-        throw new UnauthorizedException({
-          errorCode: 'INVALID_AUTH_FORMAT',
-          message: 'Authorization header must be: Bearer <api_key>',
-        });
-      }
-      token = authToken;
+    if (!apiKey) {
+      throw new UnauthorizedException('Missing x-api-key header');
     }
 
-    try {
-      const { workspace, apiKey } = await this.authService.validateApiKey(token!);
-
-      // Attach workspace to request — never trust client-supplied workspace IDs
-      request.workspace = {
-        id: workspace.id,
-        organizationId: workspace.organizationId,
-        name: workspace.name,
-        slug: workspace.slug,
-        settings: workspace.settings,
-      };
-      request.apiKeyId = apiKey.id;
-      request.permissions = apiKey.permissions;
-
-      // Update last used timestamp (fire-and-forget)
-      this.authService.updateLastUsed(apiKey.id).catch(() => {});
-
-      return true;
-    } catch (error) {
-      this.logger.warn(`API key authentication failed: ${error}`);
-      throw new UnauthorizedException({
-        errorCode: 'INVALID_API_KEY',
-        message: 'Invalid or expired API key',
-      });
+    const authConfig = this.configService.get<AuthConfig>('auth');
+    if (apiKey !== authConfig?.adminApiKey) {
+      this.logger.warn(`Invalid API key attempt from IP: ${request.ip}`);
+      throw new UnauthorizedException('Invalid API key');
     }
+
+    return true;
   }
 }

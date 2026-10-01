@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
+import { AggregatorConfigModule } from '@modules/aggregator-config/aggregator-config.module';
 import { ApiKeyGuard } from './guards/api-key.guard';
+import { AggregatorAuthGuard } from './guards/aggregator-auth.guard';
 
 @Module({
-  controllers: [AuthController],
-  providers: [AuthService, ApiKeyGuard],
-  exports: [AuthService, ApiKeyGuard],
+  imports: [AggregatorConfigModule],
+  providers: [ApiKeyGuard, AggregatorAuthGuard],
+  exports: [ApiKeyGuard, AggregatorAuthGuard, AggregatorConfigModule],
 })
 export class AuthModule {}

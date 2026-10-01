@@ -1,37 +1,13 @@
 version: '3.8'
 
 services:
-  mongodb:
-    image: mongo:7.0
-    container_name: notif-mongodb
-    ports:
-      - "${DOCKER_MONGODB_PORT:-27018}:27017"
-    volumes:
-      - mongodb_data:/data/db
-    environment:
-      MONGO_INITDB_DATABASE: notification_module
-    restart: unless-stopped
-
   redis:
     image: redis:7.2-alpine
-    container_name: notif-redis
     ports:
-      - "${DOCKER_REDIS_PORT:-6380}:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
-    restart: unless-stopped
-
-  elasticmq:
-    image: softwaremill/elasticmq-native:latest
-    container_name: notif-elasticmq
-    ports:
-      - "${DOCKER_ELASTICMQ_PORT:-9324}:9324"
-      - "9325:9325"
-    volumes:
-      - ./infrastructure/elasticmq.conf:/opt/elasticmq.conf
-    restart: unless-stopped
 
 volumes:
-  mongodb_data:
   redis_data:

@@ -1,0 +1,24 @@
+{
+  "data": {
+    "seller_id": "seller_123",
+    "customer": {
+      "phone": "+919876543210",
+      "name": "Rahul Sharma"
+    },
+    "order": {
+      "order_number": "ORD-2026-12345",
+      "amount": 1499.00,
+      "payment_method": "COD"
+    },
+    "template": {
+      "name": "order_confirmation",
+      "params": {
+        "var_1": "Rahul Sharma",
+        "var_2": "ORD-2026-12345",
+        "var_3": "123, MG Road, Sector 14, Gurgaon, Haryana 122001",
+        "var_4": "+919876543210"
+      }
+    }
+  },
+  "event": "order_confirmation"
+}

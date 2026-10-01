@@ -1,0 +1,20 @@
+{
+  "event": "order_confirmation.response",
+  "action": "CONFIRM_ORDER",
+  "timestamp": "2026-10-01T06:15:00.000Z",
+  "sellerId": "seller_123",
+  "aggregatorSlug": "quickflo",
+  "orderNumber": "ORD-12345",
+  "customer": {
+    "phone": "919876543210",
+    "name": "Rahul Sharma"
+  },
+  "metadata": {
+    "templateName": "order_confirmation",
+    "buttonText": "Confirm Order",
+    "msg91RequestId": "req_xyz",
+    "crqid": "crq_abc123",
+    "inboundWebhookId": "6abdf0000000000000000001",
+    "originalNotificationLogId": "6abdf0000000000000000002"
+  }
+}

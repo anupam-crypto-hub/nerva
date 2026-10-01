@@ -1,0 +1,16 @@
+{
+  "crqid": "abc123",
+  "companyId": "comp_456",
+  "requestedAt": "2026-09-30T12:00:00Z",
+  "customerNumber": "919876543210",
+  "content": "Your order ORD-2026-12345 is confirmed",
+  "requestId": "req_789",
+  "reason": "",
+  "eventName": "DELIVERED",
+  "uuid": "uuid_xyz",
+  "integratedNumber": "918890921925",
+  "direction": "outbound",
+  "templateName": "order_confirmation_cod",
+  "webhookType": "outbound",
+  "ts": "1727697600"
+}

@@ -1,1 +1,0 @@
-{"name":"test_cod_tpl","channel":"whatsapp","provider":"msg91","externalTemplateId":"tpl_ext_001","language":"en","category":"UTILITY","content":{"body":"Hi {{1}}, your COD order {{2}} of Rs {{3}} is being prepared."}}
